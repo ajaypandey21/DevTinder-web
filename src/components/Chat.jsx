@@ -1,20 +1,45 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createSocketConnection } from "../utils/socket";
 import { useSelector } from "react-redux";
 import { useParams } from "react-router-dom";
+import { BASE_URL } from "../utils/constants";
+import axios from "axios";
 
 const ChatBox = () => {
   const [messages, setMessages] = useState([]);
+  const { targetUserId } = useParams();
   const [newMessage, setNewMessage] = useState("");
   const userId = useSelector((store) => store.user?._id);
   const firstName = useSelector((store) => store.user?.firstName);
   const lastName = useSelector((store) => store.user?.lastName);
+  const fetchChatMessages = async () => {
+    try {
+      const chats = await axios.get(BASE_URL + `/chat/${targetUserId}`, {
+        withCredentials: true,
+      });
+      console.log("xx", chats?.data);
+      const chatMessages = chats?.data?.messages?.map((msg) => {
+        const { senderId, text } = msg;
 
-  const { targetUserId } = useParams();
-
+        return {
+          firstName: senderId.firstName,
+          lastName: senderId.lastName,
+          text,
+        };
+      });
+      setMessages(chatMessages);
+    } catch (error) {}
+  };
   useEffect(() => {
+    fetchChatMessages();
+  }, []);
+  useEffect(() => {
+    if (!userId) {
+      return;
+    }
+
     const socket = createSocketConnection();
-    socket.emit("joinChat", { firstName, lastName, userId, targetUserId });
+    socket.emit("joinChat", { firstName, userId, targetUserId });
     socket.on("messageReceived", ({ firstName, lastName, text }) => {
       console.log(firstName + lastName, "" + text);
       setMessages((messages) => [...messages, { firstName, lastName, text }]);
@@ -23,7 +48,7 @@ const ChatBox = () => {
     return () => {
       socket.disconnect();
     };
-  }, [userId, firstName]);
+  }, [userId, targetUserId, firstName, lastName]);
   const sendMessage = () => {
     const socket = createSocketConnection();
     socket.emit("sendMessage", {
