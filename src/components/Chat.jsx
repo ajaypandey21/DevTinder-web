@@ -33,6 +33,7 @@ const ChatBox = () => {
       targetUserId,
       text: newMessage,
     });
+    setNewMessage("");
   };
 
   return (
